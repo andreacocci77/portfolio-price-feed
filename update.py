@@ -13,33 +13,58 @@ HEADERS = {
 }
 
 
-def get_price(isin):
-    url = (
-        f"https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
-        f"scheda/{isin}-MOTX.html?lang=it"
-    )
+def get_price(isin, market):
+    if market == "MOT":
+        url = (
+            f"https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
+            f"scheda/{isin}-MOTX.html?lang=it"
+        )
+
+        price_label = "Prezzo ufficiale"
+
+    elif market == "SEDX":
+        url = (
+            f"https://www.borsaitaliana.it/borsa/cw-e-certificates/"
+            f"scheda/{isin}-SEDX.html?lang=it"
+        )
+
+        price_label = "Prezzo di riferimento"
+
+    else:
+        raise RuntimeError(
+            f"Mercato non supportato per {isin}: {market}"
+        )
 
     r = requests.get(
         url,
         headers=HEADERS,
         timeout=30
     )
+
     r.raise_for_status()
 
     html = r.text
 
-    # Borsa Italiana restituisce il prezzo e la data
-    # all'interno della stessa tabella HTML.
+    if market == "MOT":
+        pattern = (
+            r"Prezzo ufficiale.*?([0-9]+,[0-9]+).*?"
+            r"Data Pr Ufficiale.*?([0-9]{2}/[0-9]{2}/[0-9]{2})"
+        )
+
+    elif market == "SEDX":
+        pattern = (
+            r"Prezzo di riferimento.*?([0-9]+,[0-9]+)"
+        )
+
     m = re.search(
-        r"Prezzo ufficiale.*?([0-9]+,[0-9]+).*?"
-        r"Data Pr Ufficiale.*?([0-9]{2}/[0-9]{2}/[0-9]{2})",
+        pattern,
         html,
         re.S
     )
 
     if not m:
         raise RuntimeError(
-            f"Prezzo ufficiale non trovato per {isin}"
+            f"{price_label} non trovato per {isin}"
         )
 
     price = float(
@@ -48,10 +73,30 @@ def get_price(isin):
         .replace(",", ".")
     )
 
-    date = datetime.strptime(
-        m.group(2),
-        "%d/%m/%y"
-    ).date().isoformat()
+    if market == "MOT":
+        date = datetime.strptime(
+            m.group(2),
+            "%d/%m/%y"
+        ).date().isoformat()
+
+    else:
+        # Per SEDX prendiamo la data dell'ultimo contratto.
+        date_match = re.search(
+            r"Ultimo Contratto:\s*"
+            r"([0-9]{2}/[0-9]{2}/[0-9]{2})",
+            html,
+            re.S
+        )
+
+        if not date_match:
+            raise RuntimeError(
+                f"Data ultimo contratto non trovata per {isin}"
+            )
+
+        date = datetime.strptime(
+            date_match.group(1),
+            "%d/%m/%y"
+        ).date().isoformat()
 
     return date, price
 
@@ -110,8 +155,12 @@ def main():
 
     for item in instruments:
         isin = item["isin"]
+        market = item["market"]
 
-        date, price = get_price(isin)
+        date, price = get_price(
+            isin,
+            market
+        )
 
         path = ROOT / "prices" / f"{isin}.json"
 
@@ -138,10 +187,8 @@ def main():
             for q in old_quotes
         }
 
-        # Aggiorna il prezzo del giorno.
         quotes[date] = price
 
-        # Ordina cronologicamente.
         quotes = dict(
             sorted(quotes.items())
         )
@@ -154,7 +201,6 @@ def main():
             for d in quotes
         ]
 
-        # Salva lo storico JSON.
         path.write_text(
             json.dumps(
                 data,
@@ -164,14 +210,14 @@ def main():
             encoding="utf-8"
         )
 
-        # Genera la pagina HTML che legge Portfolio Performance.
         html_path = generate_html(
             isin,
             quotes
         )
 
         print(
-            f"{isin} {date} {price} "
+            f"{isin} [{market}] "
+            f"{date} {price} "
             f"-> JSON + {html_path.name}"
         )
 
