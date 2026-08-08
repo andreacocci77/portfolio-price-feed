@@ -6,7 +6,6 @@ from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-
 ROOT = Path(__file__).resolve().parent
 
 HEADERS = {
@@ -16,7 +15,7 @@ HEADERS = {
 
 def get_price(isin):
     url = (
-        f"https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
+        "https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
         f"scheda/{isin}-MOTX.html?lang=it"
     )
 
@@ -49,6 +48,57 @@ def get_price(isin):
     ).date().isoformat()
 
     return date, price
+
+
+def generate_html(isin, quotes):
+    """
+    Genera una pagina HTML compatibile con
+    Portfolio Performance - Table on Website.
+    """
+
+    rows = []
+
+    for date, price in quotes.items():
+        rows.append(
+            f"""        <tr>
+            <td>{date}</td>
+            <td>{price}</td>
+        </tr>"""
+        )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{isin} Historical Prices</title>
+</head>
+<body>
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Close</th>
+        </tr>
+    </thead>
+
+    <tbody>
+{chr(10).join(rows)}
+    </tbody>
+</table>
+
+</body>
+</html>
+"""
+
+    path = ROOT / "prices" / f"{isin}.html"
+
+    path.write_text(
+        html,
+        encoding="utf-8"
+    )
+
+    return path
 
 
 def main():
@@ -90,13 +140,16 @@ def main():
         # Aggiunge/aggiorna la quotazione
         quotes[date] = price
 
-        # Ricrea il JSON nel formato compatibile con Portfolio Performance
+        # Ordina cronologicamente
+        quotes = dict(sorted(quotes.items()))
+
+        # JSON
         data = [
             {
                 "date": d,
                 "close": quotes[d]
             }
-            for d in sorted(quotes)
+            for d in quotes
         ]
 
         path.write_text(
@@ -108,7 +161,13 @@ def main():
             encoding="utf-8"
         )
 
-        print(isin, date, price)
+        # HTML per Portfolio Performance
+        html_path = generate_html(isin, quotes)
+
+        print(
+            f"{isin} {date} {price} "
+            f"-> JSON + {html_path.name}"
+        )
 
 
 if __name__ == "__main__":
