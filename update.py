@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime
 
 import requests
-from bs4 import BeautifulSoup
+
 
 ROOT = Path(__file__).resolve().parent
 
@@ -15,20 +15,26 @@ HEADERS = {
 
 def get_price(isin):
     url = (
-        "https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
+        f"https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
         f"scheda/{isin}-MOTX.html?lang=it"
     )
 
-    r = requests.get(url, headers=HEADERS, timeout=30)
+    r = requests.get(
+        url,
+        headers=HEADERS,
+        timeout=30
+    )
     r.raise_for_status()
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    text = soup.get_text(" ", strip=True)
+    html = r.text
 
+    # Borsa Italiana restituisce il prezzo e la data
+    # all'interno della stessa tabella HTML.
     m = re.search(
-        r"Prezzo ufficiale\s+([0-9]+[,.][0-9]+)\s+"
-        r"Data Pr Ufficiale\s+([0-9]{2}/[0-9]{2}/[0-9]{2})",
-        text
+        r"Prezzo ufficiale.*?([0-9]+,[0-9]+).*?"
+        r"Data Pr Ufficiale.*?([0-9]{2}/[0-9]{2}/[0-9]{2})",
+        html,
+        re.S
     )
 
     if not m:
@@ -76,7 +82,6 @@ def generate_html(isin, quotes):
             <th>Close</th>
         </tr>
     </thead>
-
     <tbody>
 {chr(10).join(rows)}
     </tbody>
@@ -97,13 +102,13 @@ def generate_html(isin, quotes):
 
 
 def main():
-
     instruments = json.loads(
-        (ROOT / "isins.json").read_text(encoding="utf-8")
+        (ROOT / "isins.json").read_text(
+            encoding="utf-8"
+        )
     )
 
     for item in instruments:
-
         isin = item["isin"]
 
         date, price = get_price(isin)
@@ -111,13 +116,17 @@ def main():
         path = ROOT / "prices" / f"{isin}.json"
 
         if path.exists():
-
             existing = json.loads(
-                path.read_text(encoding="utf-8")
+                path.read_text(
+                    encoding="utf-8"
+                )
             )
 
             if isinstance(existing, dict):
-                old_quotes = existing.get("quotes", [])
+                old_quotes = existing.get(
+                    "quotes",
+                    []
+                )
             else:
                 old_quotes = existing
 
@@ -129,9 +138,13 @@ def main():
             for q in old_quotes
         }
 
+        # Aggiorna il prezzo del giorno.
         quotes[date] = price
 
-        quotes = dict(sorted(quotes.items()))
+        # Ordina cronologicamente.
+        quotes = dict(
+            sorted(quotes.items())
+        )
 
         data = [
             {
@@ -141,6 +154,7 @@ def main():
             for d in quotes
         ]
 
+        # Salva lo storico JSON.
         path.write_text(
             json.dumps(
                 data,
@@ -150,7 +164,11 @@ def main():
             encoding="utf-8"
         )
 
-        html_path = generate_html(isin, quotes)
+        # Genera la pagina HTML che legge Portfolio Performance.
+        html_path = generate_html(
+            isin,
+            quotes
+        )
 
         print(
             f"{isin} {date} {price} "
