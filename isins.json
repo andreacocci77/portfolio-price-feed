@@ -3,5 +3,10 @@
     "isin": "IT0005696338",
     "name": "BTP Valore Sc Mar32 Eur",
     "source": "borsaitaliana"
+  },
+  {
+    "isin": "IT0005713547",
+    "name": "Btp Italia Si' Jun31 Eur",
+    "source": "borsaitaliana"
   }
 ]
