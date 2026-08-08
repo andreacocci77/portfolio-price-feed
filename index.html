@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portfolio Price Feed</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;background:#f6f7f9;color:#222}
+main{background:white;padding:28px;border-radius:14px;box-shadow:0 2px 12px #0001}
+h1{margin-top:0} table{width:100%;border-collapse:collapse} th,td{text-align:left;padding:10px;border-bottom:1px solid #ddd}
+code{word-break:break-all}
+</style>
+</head>
+<body><main>
+<h1>Portfolio Price Feed</h1>
+<p>Prezzi storici per Portfolio Performance — fonte Borsa Italiana.</p>
+<table><thead><tr><th>ISIN</th><th>Strumento</th><th>API JSON</th></tr></thead>
+<tbody id="list"></tbody></table>
+<p id="updated"></p>
+</main>
+<script>
+fetch('isins.json').then(r=>r.json()).then(async items=>{
+ const tbody=document.querySelector('#list');
+ for(const x of items){
+   const tr=document.createElement('tr');
+   tr.innerHTML=`<td>${x.isin}</td><td>${x.name||''}</td><td><code>prices/${x.isin}.json</code></td>`;
+   tbody.appendChild(tr);
+ }
+});
+</script>
+</body></html>
