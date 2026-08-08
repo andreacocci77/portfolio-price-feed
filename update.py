@@ -14,6 +14,7 @@ HEADERS = {
 
 
 def get_price(isin, market):
+
     if market == "MOT":
         url = (
             f"https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/"
@@ -45,45 +46,69 @@ def get_price(isin, market):
 
     html = r.text
 
+    # ---------------------------------------------------------
+    # MOT - BTP
+    # ---------------------------------------------------------
+
     if market == "MOT":
+
         pattern = (
             r"Prezzo ufficiale.*?([0-9]+,[0-9]+).*?"
             r"Data Pr Ufficiale.*?([0-9]{2}/[0-9]{2}/[0-9]{2})"
         )
 
-    elif market == "SEDX":
-        pattern = (
-            r"Prezzo di riferimento.*?([0-9]+,[0-9]+)"
+        m = re.search(
+            pattern,
+            html,
+            re.S
         )
 
-    m = re.search(
-        pattern,
-        html,
-        re.S
-    )
+        if not m:
+            raise RuntimeError(
+                f"{price_label} non trovato per {isin}"
+            )
 
-    if not m:
-        raise RuntimeError(
-            f"{price_label} non trovato per {isin}"
+        price = float(
+            m.group(1)
+            .replace(".", "")
+            .replace(",", ".")
         )
 
-    price = float(
-        m.group(1)
-        .replace(".", "")
-        .replace(",", ".")
-    )
-
-    if market == "MOT":
         date = datetime.strptime(
             m.group(2),
             "%d/%m/%y"
         ).date().isoformat()
 
-    else:
-        # Per SEDX prendiamo la data dell'ultimo contratto.
+    # ---------------------------------------------------------
+    # SEDX - Certificati
+    # ---------------------------------------------------------
+
+    elif market == "SEDX":
+
+        # Prezzo di riferimento
+        price_match = re.search(
+            r"Prezzo di riferimento.*?([0-9]+,[0-9]+)",
+            html,
+            re.S
+        )
+
+        if not price_match:
+            raise RuntimeError(
+                f"{price_label} non trovato per {isin}"
+            )
+
+        price = float(
+            price_match.group(1)
+            .replace(".", "")
+            .replace(",", ".")
+        )
+
+        # Data dell'ultimo contratto.
+        #
+        # Usiamo .*? invece di \s* perché nel codice HTML
+        # possono esserci tag HTML tra l'etichetta e la data.
         date_match = re.search(
-            r"Ultimo Contratto:\s*"
-            r"([0-9]{2}/[0-9]{2}/[0-9]{2})",
+            r"Ultimo Contratto:.*?([0-9]{2}/[0-9]{2}/[0-9]{2})",
             html,
             re.S
         )
@@ -102,9 +127,11 @@ def get_price(isin, market):
 
 
 def generate_html(isin, quotes):
+
     rows = []
 
     for date, price in quotes.items():
+
         rows.append(
             f"""        <tr>
             <td>{date}</td>
@@ -147,6 +174,7 @@ def generate_html(isin, quotes):
 
 
 def main():
+
     instruments = json.loads(
         (ROOT / "isins.json").read_text(
             encoding="utf-8"
@@ -154,6 +182,7 @@ def main():
     )
 
     for item in instruments:
+
         isin = item["isin"]
         market = item["market"]
 
@@ -165,6 +194,7 @@ def main():
         path = ROOT / "prices" / f"{isin}.json"
 
         if path.exists():
+
             existing = json.loads(
                 path.read_text(
                     encoding="utf-8"
