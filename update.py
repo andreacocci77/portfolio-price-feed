@@ -51,11 +51,6 @@ def get_price(isin):
 
 
 def generate_html(isin, quotes):
-    """
-    Genera una pagina HTML compatibile con
-    Portfolio Performance - Table on Website.
-    """
-
     rows = []
 
     for date, price in quotes.items():
@@ -115,14 +110,12 @@ def main():
 
         path = ROOT / "prices" / f"{isin}.json"
 
-        # Legge lo storico esistente
         if path.exists():
 
             existing = json.loads(
                 path.read_text(encoding="utf-8")
             )
 
-            # Compatibilità con il vecchio formato
             if isinstance(existing, dict):
                 old_quotes = existing.get("quotes", [])
             else:
@@ -131,19 +124,15 @@ def main():
         else:
             old_quotes = []
 
-        # Trasforma lo storico in un dizionario data -> prezzo
         quotes = {
             q["date"]: q["close"]
             for q in old_quotes
         }
 
-        # Aggiunge/aggiorna la quotazione
         quotes[date] = price
 
-        # Ordina cronologicamente
         quotes = dict(sorted(quotes.items()))
 
-        # JSON
         data = [
             {
                 "date": d,
@@ -161,7 +150,6 @@ def main():
             encoding="utf-8"
         )
 
-        # HTML per Portfolio Performance
         html_path = generate_html(isin, quotes)
 
         print(
