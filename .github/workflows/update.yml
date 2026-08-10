@@ -2,7 +2,7 @@ name: Update prices
 
 on:
   schedule:
-    - cron: '25 21 * * 1-5'
+    - cron: '56 21 * * 1-5'
       timezone: "Europe/Rome"
   workflow_dispatch:
 
