@@ -8,6 +8,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parent
 
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; PortfolioPriceFeed/1.0)"
 }
@@ -103,25 +104,9 @@ def get_price(isin, market):
             .replace(",", ".")
         )
 
-        # Data dell'ultimo contratto.
-        #
-        # Usiamo .*? invece di \s* perché nel codice HTML
-        # possono esserci tag HTML tra l'etichetta e la data.
-        date_match = re.search(
-            r"Ultimo Contratto:.*?([0-9]{2}/[0-9]{2}/[0-9]{2})",
-            html,
-            re.S
-        )
-
-        if not date_match:
-            raise RuntimeError(
-                f"Data ultimo contratto non trovata per {isin}"
-            )
-
-        date = datetime.strptime(
-            date_match.group(1),
-            "%d/%m/%y"
-        ).date().isoformat()
+        # Per i certificati utilizziamo sempre la data odierna.
+        # Lo script viene eseguito una volta al giorno.
+        date = datetime.now().date().isoformat()
 
     return date, price
 
@@ -134,31 +119,29 @@ def generate_html(isin, quotes):
 
         rows.append(
             f"""        <tr>
-            <td>{date}</td>
-            <td>{price}</td>
-        </tr>"""
+        <td>{date}</td>
+        <td>{price}</td>
+    </tr>"""
         )
 
     html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>{isin} Historical Prices</title>
+    <title>{isin}</title>
 </head>
 <body>
-
-<table>
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Close</th>
-        </tr>
-    </thead>
-    <tbody>
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Prezzo</th>
+            </tr>
+        </thead>
+        <tbody>
 {chr(10).join(rows)}
-    </tbody>
-</table>
-
+        </tbody>
+    </table>
 </body>
 </html>
 """
