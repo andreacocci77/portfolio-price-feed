@@ -1,7 +1,8 @@
 name: Update prices
 on:
   schedule:
-    - cron: '30 18 * * 1-5'
+    - cron: '25 21 * * 1-5'
+      timezone: "Europe/Rome"
   workflow_dispatch:
 permissions:
   contents: write
